@@ -174,12 +174,15 @@ fn get_cursors(f: &SQLGSI, handle: i16) -> Vec<SQLBaseCursor> {
 
     let buf = buffer_to_unsigned_byte(&buffer);
     let mut i = 0;
-    while i < buf_length - 160 {
-        results.push(SQLBaseCursor {
+    while i < buf_length {
+        let cursor = SQLBaseCursor {
             pid: buffer[(i + 29) as usize] as i32,
             db: extract_string(&buf, (i + 52) as usize)
-        });
-
+        };
+        
+        results.push(cursor);
+        
+        //i += 112; // Only when extended cursor information is loaded
         i += 60;
     }
     results
@@ -202,6 +205,24 @@ fn get_sqlbase_configuration(f: &SQLGSI, handle: i16) -> Option<SQLBaseConfig> {
         server: extract_string(&buf, 26),
         sqlbase_version: extract_string(&buf, 371)
     })
+}
+
+fn connect_sqlbase(f: &SQLCSV, handle: &mut i16, server: &str) {
+    let server_ptr = CString::new(server.clone()).unwrap();
+    let password_ptr = CString::new("").unwrap();
+
+    let con = f(handle, server_ptr.as_ptr(), password_ptr.as_ptr());
+    if con != 0 {
+        println!("{}Failed to connect to server. Code {}", sql_error(), con);
+        // return Ok(())
+    }
+}
+
+fn disconnect_sqlbase(f: &SQLDSV, handle: i16) {
+    let con = f(handle);
+    if con != 0 {
+        println!("{}Failed to disconnect from server. Code {}", sql_error(), con);
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -230,16 +251,11 @@ fn main() -> io::Result<()> {
     let sqldbn = unsafe { lib.get::<SQLDBN>(b"sqldbn").unwrap() };
 
     let mut handle: i16 = 0;
-    let server_ptr = CString::new(server.clone()).unwrap();
-    let password_ptr = CString::new("").unwrap();
 
-    let con = sqlcsv(&mut handle, server_ptr.as_ptr(), password_ptr.as_ptr());
-    if con != 0 {
-        println!("{}Failed to connect to server. Code {}", sql_error(), con);
-        return Ok(())
-    }
-
+    connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
     let conf = get_sqlbase_configuration(&sqlgsi, handle).unwrap();
+    disconnect_sqlbase(&sqldsv, handle);
+
 
     let server_status = match conf.online {
         true => "0",
@@ -247,6 +263,9 @@ fn main() -> io::Result<()> {
     };
 
     println!("{} \"SQLBase\" - Server: {}, Version: {}, Start: {}", server_status, conf.server, conf.sqlbase_version, conf.boot_time);
+
+
+
 
     let names = get_database_names(&sqldbn, &server[..]);
     let mut stats = HashMap::new();
@@ -256,8 +275,16 @@ fn main() -> io::Result<()> {
         stats.insert(name, Stats(0f64, 0f64));
     }
 
-    let mut processes = get_processes(&sqlgsi, handle);
+    connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
     let cursors = get_cursors(&sqlgsi, handle);
+    disconnect_sqlbase(&sqldsv, handle);
+
+    connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
+    let mut processes = get_processes(&sqlgsi, handle);
+    disconnect_sqlbase(&sqldsv, handle);
+
+
+    let mut ignore_count = 0;
 
     for proc in processes.iter_mut() {
         let db = match cursors.iter().find(|x| x.pid == proc.id) {
@@ -267,16 +294,16 @@ fn main() -> io::Result<()> {
 
         let entry = match stats.get_mut(db) {
             Some(v) => v,
-            None => continue
+            None => {
+                ignore_count += 1;
+                continue;
+            }
         };
 
         entry.increment(proc.active);
     }
-    let con = sqldsv(handle);
-    if con != 0 {
-        println!("{}Failed to disconnect from server. Code {}", sql_error(), con);
-        return Ok(())
-    }
+    
+    println!("0 \"SQLBase Statistic\" - Processes: {} total - {} ignored, Cursors: {}", processes.len(), ignore_count, cursors.len());
 
     for (k, s) in stats.iter() {
         let plt = (s.0 + s.1) * 0.2;
@@ -287,7 +314,7 @@ fn main() -> io::Result<()> {
             _ => "P"
         };
         
-        println!("{} \"SQLBase {} Processes\" count={};{};{} {} active processes, {} idle processes", status, k, s.1, plt, put, s.1, s.0);
+        println!("{} \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", status, k, s.1, plt, put, s.1, s.0);
     }
 
     let _ = io::stdout().flush();
