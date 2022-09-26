@@ -256,16 +256,12 @@ fn main() -> io::Result<()> {
     let conf = get_sqlbase_configuration(&sqlgsi, handle).unwrap();
     disconnect_sqlbase(&sqldsv, handle);
 
-
     let server_status = match conf.online {
         true => "0",
         false => "2"
     };
 
     println!("{} \"SQLBase\" - Server: {}, Version: {}, Start: {}", server_status, conf.server, conf.sqlbase_version, conf.boot_time);
-
-
-
 
     let names = get_database_names(&sqldbn, &server[..]);
     let mut stats = HashMap::new();
@@ -282,7 +278,6 @@ fn main() -> io::Result<()> {
     connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
     let mut processes = get_processes(&sqlgsi, handle);
     disconnect_sqlbase(&sqldsv, handle);
-
 
     let mut ignore_count = 0;
 

@@ -74,7 +74,7 @@ This is a [local check](https://docs.checkmk.com/latest/en/localchecks.html) plu
 
 ### Prerequisites
 
-You will need to build the binary. Make sure you have [cargo](https://crates.io/) installed and follow the istructions below.
+You will need to build the binary. Make sure you have [cargo](https://crates.io/) installed and follow the instructions below.
 
 Install the checkmk agent on your server and add it to your sites inventory, if you have not already done so. Follow the [checkmk docs](https://docs.checkmk.com/latest/en/agent_windows.html#install) to do so.
 
