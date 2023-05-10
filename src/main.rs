@@ -26,14 +26,21 @@ struct SQLBaseConfig {
     online: bool
 }
 
-struct Stats(f64, f64);
+struct Stats {
+    active_processes: f64,
+    idle_processes: f64,
+}
 
 impl Stats {
+    fn new() -> Self {
+        Stats { active_processes: 0f64, idle_processes: 0f64 }
+    }
+
     fn increment(&mut self, active: bool) {
         if active {
-            self.1 += 1f64;
+            self.active_processes += 1f64;
         } else {
-            self.0 += 1f64;
+            self.idle_processes += 1f64;
         }
     }
 }
@@ -268,7 +275,7 @@ fn main() -> io::Result<()> {
 
     for name in names {
         println!("0 \"SQLBase {} Database\" - Status: ONLINE", name);
-        stats.insert(name, Stats(0f64, 0f64));
+        stats.insert(name, Stats::new());
     }
 
     connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
@@ -298,18 +305,16 @@ fn main() -> io::Result<()> {
         entry.increment(proc.active);
     }
     
-    println!("0 \"SQLBase Statistic\" - Processes: {} total - {} ignored, Cursors: {}", processes.len(), ignore_count, cursors.len());
+    println!("0 \"SQLBase Statistic\" - Processes: {} total and {} ignored, Cursors: {}", processes.len(), ignore_count, cursors.len());
 
-    for (k, s) in stats.iter() {
-        let plt = (s.0 + s.1) * 0.2;
-        let put = (s.0 + s.1) * 0.4;
+    for (name, stat) in stats.iter() {
+        let process_sum = stat.idle_processes + stat.active_processes;
 
-        let status = match (s.0 + s.1) as i32 {
-            0..=4 => "0",
-            _ => "P"
-        };
+        let lower_threshold = (process_sum * 0.25).floor(); // Lower threshold for warning-status
+        let upper_threshold = (process_sum * 0.5).floor(); // Upper threshold for critical-status
         
-        println!("{} \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", status, k, s.1, plt, put, s.1, s.0);
+        println!("P \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", 
+            name, stat.active_processes, lower_threshold, upper_threshold, stat.active_processes, stat.idle_processes);
     }
 
     let _ = io::stdout().flush();
