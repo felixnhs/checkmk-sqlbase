@@ -9,6 +9,13 @@ use std::io::prelude::*;
 use libloading::{Library, Symbol};
 use std::ffi::{CString};
 
+// Percentage of active processes of the total processes for Warning-state
+const LOWER_THRESHOLD_PERCENT: i32 = 20;
+// Percentage of active processes of the total processes for Critical-state
+const UPPER_THRESHOLD_PERCENT: i32 = 40;
+// Minimum total of processes for the automatic status update
+const MIN_PROCESS_SUM: i32 = 10;
+
 struct SQLBaseProcess {
     id: i32,
     active: bool,
@@ -26,14 +33,21 @@ struct SQLBaseConfig {
     online: bool
 }
 
-struct Stats(f64, f64);
+struct Stats {
+    active_processes: i32,
+    idle_processes: i32,
+}
 
 impl Stats {
+    fn new() -> Self {
+        Stats { active_processes: 0, idle_processes: 0 }
+    }
+
     fn increment(&mut self, active: bool) {
         if active {
-            self.1 += 1f64;
+            self.active_processes += 1;
         } else {
-            self.0 += 1f64;
+            self.idle_processes += 1;
         }
     }
 }
@@ -256,7 +270,6 @@ fn main() -> io::Result<()> {
     let conf = get_sqlbase_configuration(&sqlgsi, handle).unwrap();
     disconnect_sqlbase(&sqldsv, handle);
 
-
     let server_status = match conf.online {
         true => "0",
         false => "2"
@@ -264,15 +277,12 @@ fn main() -> io::Result<()> {
 
     println!("{} \"SQLBase\" - Server: {}, Version: {}, Start: {}", server_status, conf.server, conf.sqlbase_version, conf.boot_time);
 
-
-
-
     let names = get_database_names(&sqldbn, &server[..]);
     let mut stats = HashMap::new();
 
     for name in names {
         println!("0 \"SQLBase {} Database\" - Status: ONLINE", name);
-        stats.insert(name, Stats(0f64, 0f64));
+        stats.insert(name, Stats::new());
     }
 
     connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
@@ -282,7 +292,6 @@ fn main() -> io::Result<()> {
     connect_sqlbase(&sqlcsv, &mut handle, &server[..]);
     let mut processes = get_processes(&sqlgsi, handle);
     disconnect_sqlbase(&sqldsv, handle);
-
 
     let mut ignore_count = 0;
 
@@ -303,18 +312,21 @@ fn main() -> io::Result<()> {
         entry.increment(proc.active);
     }
     
-    println!("0 \"SQLBase Statistic\" - Processes: {} total - {} ignored, Cursors: {}", processes.len(), ignore_count, cursors.len());
+    println!("0 \"SQLBase Statistic\" - Processes: {} total and {} ignored, Cursors: {}", processes.len(), ignore_count, cursors.len());
 
-    for (k, s) in stats.iter() {
-        let plt = (s.0 + s.1) * 0.2;
-        let put = (s.0 + s.1) * 0.4;
+    for (name, stat) in stats.iter() {
+        let process_sum = stat.idle_processes + stat.active_processes;
 
-        let status = match (s.0 + s.1) as i32 {
-            0..=4 => "0",
-            _ => "P"
+        let lower_threshold = process_sum * LOWER_THRESHOLD_PERCENT / 100; // Lower threshold for warning-status
+        let upper_threshold = process_sum * UPPER_THRESHOLD_PERCENT / 100; // Upper threshold for critical-status
+
+        let status = match process_sum as i32 {
+            0..=MIN_PROCESS_SUM => "0", // automatic OK-status when below the minimum required total
+            _ => "P" // Automatic status when more processes
         };
-        
-        println!("{} \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", status, k, s.1, plt, put, s.1, s.0);
+
+        println!("{} \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", 
+            status, name, stat.active_processes, lower_threshold, upper_threshold, stat.active_processes, stat.idle_processes);
     }
 
     let _ = io::stdout().flush();
