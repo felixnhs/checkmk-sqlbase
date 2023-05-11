@@ -10,9 +10,9 @@ use libloading::{Library, Symbol};
 use std::ffi::{CString};
 
 // Percentage of active processes of the total processes for Warning-state
-const LOWER_THRESHOLD_PERCENT: u8 = 20;
+const LOWER_THRESHOLD_PERCENT: i32 = 20;
 // Percentage of active processes of the total processes for Critical-state
-const UPPER_THRESHOLD_PERCENT: u8 = 40;
+const UPPER_THRESHOLD_PERCENT: i32 = 40;
 // Minimum total of processes for the automatic status update
 const MIN_PROCESS_SUM: i32 = 10;
 
@@ -34,20 +34,20 @@ struct SQLBaseConfig {
 }
 
 struct Stats {
-    active_processes: f64,
-    idle_processes: f64,
+    active_processes: i32,
+    idle_processes: i32,
 }
 
 impl Stats {
     fn new() -> Self {
-        Stats { active_processes: 0f64, idle_processes: 0f64 }
+        Stats { active_processes: 0, idle_processes: 0 }
     }
 
     fn increment(&mut self, active: bool) {
         if active {
-            self.active_processes += 1f64;
+            self.active_processes += 1;
         } else {
-            self.idle_processes += 1f64;
+            self.idle_processes += 1;
         }
     }
 }
@@ -317,9 +317,9 @@ fn main() -> io::Result<()> {
     for (name, stat) in stats.iter() {
         let process_sum = stat.idle_processes + stat.active_processes;
 
-        let lower_threshold = (process_sum * f64::from(LOWER_THRESHOLD_PERCENT / 100)).floor(); // Lower threshold for warning-status
-        let upper_threshold = (process_sum * f64::from(UPPER_THRESHOLD_PERCENT / 100)).floor(); // Upper threshold for critical-status
-        
+        let lower_threshold = process_sum * LOWER_THRESHOLD_PERCENT / 100; // Lower threshold for warning-status
+        let upper_threshold = process_sum * UPPER_THRESHOLD_PERCENT / 100; // Upper threshold for critical-status
+
         let status = match process_sum as i32 {
             0..=MIN_PROCESS_SUM => "0", // automatic OK-status when below the minimum required total
             _ => "P" // Automatic status when more processes
