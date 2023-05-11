@@ -9,6 +9,13 @@ use std::io::prelude::*;
 use libloading::{Library, Symbol};
 use std::ffi::{CString};
 
+// Percentage of active processes of the total processes for Warning-state
+const LOWER_THRESHOLD_PERCENT: u8 = 20;
+// Percentage of active processes of the total processes for Critical-state
+const UPPER_THRESHOLD_PERCENT: u8 = 40;
+// Minimum total of processes for the automatic status update
+const MIN_PROCESS_SUM: i32 = 10;
+
 struct SQLBaseProcess {
     id: i32,
     active: bool,
@@ -310,11 +317,16 @@ fn main() -> io::Result<()> {
     for (name, stat) in stats.iter() {
         let process_sum = stat.idle_processes + stat.active_processes;
 
-        let lower_threshold = (process_sum * 0.25).floor(); // Lower threshold for warning-status
-        let upper_threshold = (process_sum * 0.5).floor(); // Upper threshold for critical-status
+        let lower_threshold = (process_sum * f64::from(LOWER_THRESHOLD_PERCENT / 100)).floor(); // Lower threshold for warning-status
+        let upper_threshold = (process_sum * f64::from(UPPER_THRESHOLD_PERCENT / 100)).floor(); // Upper threshold for critical-status
         
-        println!("P \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", 
-            name, stat.active_processes, lower_threshold, upper_threshold, stat.active_processes, stat.idle_processes);
+        let status = match process_sum as i32 {
+            0..=MIN_PROCESS_SUM => "0", // automatic OK-status when below the minimum required total
+            _ => "P" // Automatic status when more processes
+        };
+
+        println!("{} \"SQLBase {} Processes\" count={};{:.1};{:.1} {} active processes, {} idle processes", 
+            status, name, stat.active_processes, lower_threshold, upper_threshold, stat.active_processes, stat.idle_processes);
     }
 
     let _ = io::stdout().flush();
