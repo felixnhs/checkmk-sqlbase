@@ -9,16 +9,8 @@
 <br />
 <div align="center">
 <h3 align="center">check<b>mk</b> SQLBase</h3>
-
   <p align="center">
     check<b>mk</b> local check to monitor your SQLBase server
-    <br />
-    <a href="https://github.com/Zedane/checkmk-sqlbase/blob/master/readme.md"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/Zedane/checkmk-sqlbase/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/Zedane/checkmk-sqlbase/issues">Request Feature</a>
   </p>
 </div>
 
@@ -82,7 +74,7 @@ Install the checkmk agent on your server and add it to your sites inventory, if 
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/Zedane/checkmk-sqlbase.git
+   git clone https://github.com/felixnhs/checkmk-sqlbase.git
    ```
 2. Open your command line or terminal in the projects directory and use [cargo](https://crates.io/) to build the binary:
    ```sh
@@ -101,7 +93,7 @@ Distributed under the MIT License. See [LICENSE][license-url] for more informati
 <!-- CONTACT -->
 ## Contact
 
-Project Link: [https://github.com/Zedane/checkmk-sqlbase](https://github.com/Zedane/checkmk-sqlbase)
+Project Link: [https://github.com/felixnhs/checkmk-sqlbase](https://github.com/felixnhs/checkmk-sqlbase)
 
 
 <!-- ACKNOWLEDGMENTS -->
@@ -114,7 +106,7 @@ Project Link: [https://github.com/Zedane/checkmk-sqlbase](https://github.com/Zed
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[issues-shield]: https://img.shields.io/github/issues/Zedane/checkmk-sqlbase.svg?style=for-the-badge
-[issues-url]: https://github.com/Zedane/checkmk-sqlbase/issues
+[issues-shield]: https://img.shields.io/github/issues/felixnhs/checkmk-sqlbase.svg?style=for-the-badge
+[issues-url]: https://github.com/felixnhs/checkmk-sqlbase/issues
 [license-shield]: https://img.shields.io/github/license/Zedane/checkmk-sqlbase.svg?style=for-the-badge
-[license-url]: https://github.com/Zedane/checkmk-sqlbase/blob/master/LICENSE
+[license-url]: https://github.com/felixnhs/checkmk-sqlbase/blob/master/LICENSE
